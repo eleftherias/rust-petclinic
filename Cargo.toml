@@ -1,0 +1,12 @@
+[package]
+name = "rust-petclinic"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+axum = "0.5.6"
+hyper = { version = "0.14.19", features = ["full"] }
+tokio = { version = "1.19.2", features = ["full"] }
+tower = "0.4.12"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
