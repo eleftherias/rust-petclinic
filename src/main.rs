@@ -1,8 +1,10 @@
 use axum::{response::IntoResponse, routing::get, Extension, Json, Router};
-use entity::{specialty, vet};
-use migration::Migrator;
-use migration::MigratorTrait;
-use sea_orm::{DatabaseConnection, EntityTrait};
+use entity::{owner, pet, pet_type, specialty, vet};
+use migration::{MigratorTrait, Migrator};
+use owner::Entity as Owner;
+use pet::Entity as Pet;
+use pet_type::Entity as PetType;
+use sea_orm::{entity::prelude::*, DatabaseConnection, EntityTrait};
 use serde::Serialize;
 use specialty::Entity as Specialty;
 use tower::ServiceBuilder;
@@ -19,6 +21,7 @@ async fn main() {
 
     let app = Router::new()
         .route("/vets", get(vets_get))
+        .route("/owners", get(owners_get))
         .layer(ServiceBuilder::new().layer(Extension(connection)));
 
     // run it with hyper on localhost:3000
@@ -52,6 +55,53 @@ async fn vets_get(Extension(ref conn): Extension<DatabaseConnection>) -> impl In
     Json(vets)
 }
 
+async fn owners_get(Extension(ref conn): Extension<DatabaseConnection>) -> impl IntoResponse {
+    let owners = Owner::find()
+        .all(conn)
+        .await
+        .expect("Could not fetch owners");
+
+    let mut owner_dtos: Vec<OwnerDto> = Vec::new();
+    for owner in owners {
+        let pets = owner
+            .find_related(Pet)
+            .all(conn)
+            .await
+            .expect("Could not fetch pets");
+        let mut pet_dtos: Vec<PetDto> = Vec::new();
+        for pet in pets {
+            let kind = pet
+                .find_related(PetType)
+                .one(conn)
+                .await
+                .expect("Could not fetch pet type")
+                .unwrap();
+            let pet_dto = PetDto {
+                id: pet.id,
+                name: pet.name,
+                birth_date: pet.birth_date,
+                kind: TypeDto {
+                    id: kind.id,
+                    name: kind.name,
+                },
+            };
+            pet_dtos.push(pet_dto);
+        }
+        let owner_dto = OwnerDto {
+            id: owner.id,
+            first_name: owner.first_name,
+            last_name: owner.last_name,
+            address: owner.address,
+            city: owner.city,
+            telephone: owner.telephone,
+            pets: pet_dtos,
+        };
+        owner_dtos.push(owner_dto);
+    }
+
+    Json(owner_dtos)
+}
+
 #[derive(Serialize)]
 struct VetDto {
     id: i32,
@@ -62,6 +112,31 @@ struct VetDto {
 
 #[derive(Serialize)]
 struct SpecialtyDto {
+    id: i32,
+    name: String,
+}
+
+#[derive(Serialize)]
+struct OwnerDto {
+    id: i32,
+    first_name: String,
+    last_name: String,
+    address: String,
+    city: String,
+    telephone: String,
+    pets: Vec<PetDto>,
+}
+
+#[derive(Serialize)]
+struct PetDto {
+    id: i32,
+    name: String,
+    birth_date: Date,
+    kind: TypeDto, // type is a keyword in Rust
+}
+
+#[derive(Serialize)]
+struct TypeDto {
     id: i32,
     name: String,
 }
