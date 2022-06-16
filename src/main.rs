@@ -1,11 +1,12 @@
-use axum::{response::IntoResponse, routing::get, Extension, Json, Router};
+use axum::{response::IntoResponse, routing::{get, post}, Extension, Json, Router, extract::Path};
 use entity::{owner, pet, pet_type, specialty, vet};
+use hyper::StatusCode;
 use migration::{MigratorTrait, Migrator};
 use owner::Entity as Owner;
 use pet::Entity as Pet;
 use pet_type::Entity as PetType;
-use sea_orm::{entity::prelude::*, DatabaseConnection, EntityTrait};
-use serde::Serialize;
+use sea_orm::{entity::prelude::*, DatabaseConnection, EntityTrait, Set};
+use serde::{Serialize, Deserialize};
 use specialty::Entity as Specialty;
 use tower::ServiceBuilder;
 use vet::Entity as Vet;
@@ -21,7 +22,8 @@ async fn main() {
 
     let app = Router::new()
         .route("/vets", get(vets_get))
-        .route("/owners", get(owners_get))
+        .route("/owners", get(owners_get))        
+        .route("/owners/:owner_id/pets/new", post(pet_create))
         .layer(ServiceBuilder::new().layer(Extension(connection)));
 
     // run it with hyper on localhost:3000
@@ -102,6 +104,25 @@ async fn owners_get(Extension(ref conn): Extension<DatabaseConnection>) -> impl 
     Json(owner_dtos)
 }
 
+async fn pet_create(
+    Extension(ref conn): Extension<DatabaseConnection>,
+    Path(owner_id): Path<i32>,
+    Json(payload): Json<CreatePet>,
+) -> impl IntoResponse {
+    pet::ActiveModel {
+        name: Set(payload.name.to_owned()),
+        birth_date: Set(payload.birth_date.to_owned()),
+        type_id: Set(payload.kind_id.to_owned()),
+        owner_id: Set(Some(owner_id)),
+        ..Default::default()
+    }
+    .save(conn)
+    .await
+    .expect("Coud not create pet");
+
+    StatusCode::CREATED
+}
+
 #[derive(Serialize)]
 struct VetDto {
     id: i32,
@@ -133,6 +154,13 @@ struct PetDto {
     name: String,
     birth_date: Date,
     kind: TypeDto, // type is a keyword in Rust
+}
+
+#[derive(Deserialize)]
+struct CreatePet {
+    name: String,
+    birth_date: Date,
+    kind_id: i32,
 }
 
 #[derive(Serialize)]
