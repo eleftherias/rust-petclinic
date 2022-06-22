@@ -1,14 +1,21 @@
-use axum::{response::IntoResponse, routing::{get, post}, Extension, Json, Router, extract::Path};
+use axum::{
+    extract::Path,
+    http::HeaderValue,
+    response::IntoResponse,
+    routing::{get, post},
+    Extension, Json, Router,
+};
 use entity::{owner, pet, pet_type, specialty, vet};
-use hyper::StatusCode;
-use migration::{MigratorTrait, Migrator};
+use hyper::{Method, StatusCode};
+use migration::{Migrator, MigratorTrait};
 use owner::Entity as Owner;
 use pet::Entity as Pet;
 use pet_type::Entity as PetType;
 use sea_orm::{entity::prelude::*, DatabaseConnection, EntityTrait, Set};
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use specialty::Entity as Specialty;
 use tower::ServiceBuilder;
+use tower_http::cors::CorsLayer;
 use vet::Entity as Vet;
 
 #[tokio::main]
@@ -22,8 +29,13 @@ async fn main() {
 
     let app = Router::new()
         .route("/vets", get(vets_get))
-        .route("/owners", get(owners_get))        
+        .route("/owners", get(owners_get))
         .route("/owners/:owner_id/pets/new", post(pet_create))
+        .layer(
+            CorsLayer::new()
+                .allow_origin("http://localhost:8080".parse::<HeaderValue>().unwrap())
+                .allow_methods([Method::GET]),
+        )
         .layer(ServiceBuilder::new().layer(Extension(connection)));
 
     // run it with hyper on localhost:3000
@@ -44,7 +56,8 @@ async fn vets_get(Extension(ref conn): Extension<DatabaseConnection>) -> impl In
             id: t.0.id,
             first_name: t.0.first_name,
             last_name: t.0.last_name,
-            specialties: t.1
+            specialties: t
+                .1
                 .into_iter()
                 .map(|s| SpecialtyDto {
                     id: s.id,
