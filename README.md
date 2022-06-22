@@ -27,3 +27,13 @@ Test the application by running:
 ```
 cargo test
 ```
+
+## Run the client application
+
+Serve the application by running:
+```
+trunk serve
+```
+The application will start on port 8080.
+
+You can view the running application by navigating to localhost:8080 in your browser.
