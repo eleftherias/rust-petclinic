@@ -7,7 +7,11 @@ A sample Rust application modeled after [Spring PetClinic](https://github.com/sp
 docker compose up
 ```
 
-## Run the application
+## Run the server application
+```
+cd server
+```
+
 Start the application by running:
 ```
 cargo run
