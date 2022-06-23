@@ -18,9 +18,6 @@ pub struct OwnersListProps {
 
 #[function_component(OwnersList)]
 pub fn owners_list(OwnersListProps { owners }: &OwnersListProps) -> Html {
-    // owners.iter().map(|owner| html! {
-    //     <p>{format!("{}: {}", owner.first_name, owner.last_name)}</p>
-    // }).collect()
     html! {
         <table id="owners">
         <thead>
