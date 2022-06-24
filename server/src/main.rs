@@ -21,7 +21,7 @@ use vet::Entity as Vet;
 #[tokio::main]
 async fn main() {
     let connection =
-        sea_orm::Database::connect("postgres://petclinic:petclinic@localhost/petclinic")
+        sea_orm::Database::connect("sqlite::memory:")
             .await
             .unwrap();
     Migrator::fresh(&connection).await.unwrap();
