@@ -1,7 +1,5 @@
-use sea_orm_migration::{
-    prelude::*,
-    sea_orm::{ConnectionTrait, Statement},
-};
+use entity::vet;
+use sea_orm_migration::prelude::*;
 
 pub struct Migration;
 
@@ -14,10 +12,14 @@ impl MigrationName for Migration {
 #[async_trait::async_trait]
 impl MigrationTrait for Migration {
     async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {
-        let sql = r#"
-          CREATE INDEX ON vets (last_name);
-          "#;
-        let stmt = Statement::from_string(manager.get_database_backend(), sql.to_owned());
-        manager.get_connection().execute(stmt).await.map(|_| ())
+        manager
+            .create_index(
+                sea_query::Index::create()
+                    .name("idx_vets_last_name")
+                    .table(vet::Entity)
+                    .col(vet::Column::LastName)
+                    .to_owned(),
+            )
+            .await
     }
 }

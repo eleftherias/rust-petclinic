@@ -1,10 +1,8 @@
-use sea_orm_migration::sea_orm::{ConnectionTrait, Statement};
-use sea_orm_migration::{
-    prelude::*,
-};
-use sea_orm_migration::{
-    MigrationName, MigrationTrait,
-};
+use entity::{pet, pet_type};
+use sea_orm_migration::prelude::*;
+use sea_orm_migration::sea_orm::prelude::Date;
+use sea_orm_migration::sea_orm::{ActiveModelTrait, Set};
+use sea_orm_migration::{MigrationName, MigrationTrait};
 
 pub struct Migration;
 
@@ -17,18 +15,24 @@ impl MigrationName for Migration {
 #[async_trait::async_trait]
 impl MigrationTrait for Migration {
     async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {
+        let db = manager.get_connection();
 
-        let sql = r#"
-        INSERT INTO types (name) SELECT 'cat' WHERE NOT EXISTS (SELECT * FROM specialties WHERE name='cat');
-        "#;
-        let stmt = Statement::from_string(manager.get_database_backend(), sql.to_owned());
-        manager.get_connection().execute(stmt).await?;
+        pet_type::ActiveModel {
+            name: Set("cat".to_owned()),
+            ..Default::default()
+        }
+        .insert(db)
+        .await?;
 
-        let sql2 = r#"
-        INSERT INTO pets (name, birth_date, type_id, owner_id) SELECT 'Leo', '2000-09-07', 1, 1 WHERE NOT EXISTS (SELECT * FROM pets WHERE id=1);
-        "#;
-        let stmt2 = Statement::from_string(manager.get_database_backend(), sql2.to_owned());
-        manager.get_connection().execute(stmt2).await?;
+        pet::ActiveModel {
+            name: Set("Leo".to_owned()),
+            birth_date: Set(Date::parse_from_str("2000-09-07", "%Y-%m-%d").unwrap()),
+            type_id: Set(1),
+            owner_id: Set(Some(1)),
+            ..Default::default()
+        }
+        .insert(db)
+        .await?;
 
         Ok(())
     }

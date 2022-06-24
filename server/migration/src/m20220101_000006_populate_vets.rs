@@ -1,10 +1,7 @@
-use sea_orm_migration::sea_orm::{ConnectionTrait, Statement};
-use sea_orm_migration::{
-    prelude::*,
-};
-use sea_orm_migration::{
-    MigrationName, MigrationTrait,
-};
+use entity::{specialty, vet, vet_specialty};
+use sea_orm_migration::prelude::*;
+use sea_orm_migration::sea_orm::{ActiveModelTrait, Set};
+use sea_orm_migration::{MigrationName, MigrationTrait};
 
 pub struct Migration;
 
@@ -17,30 +14,37 @@ impl MigrationName for Migration {
 #[async_trait::async_trait]
 impl MigrationTrait for Migration {
     async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {
+        let db = manager.get_connection();
 
-        let sql = r#"
-        INSERT INTO vets (first_name, last_name) SELECT 'James', 'Carter' WHERE NOT EXISTS (SELECT * FROM vets WHERE id=1);
-        "#;
-        let stmt = Statement::from_string(manager.get_database_backend(), sql.to_owned());
-        manager.get_connection().execute(stmt).await?;
+        vet::ActiveModel {
+            first_name: Set("James".to_owned()),
+            last_name: Set("Carter".to_owned()),
+            ..Default::default()
+        }
+        .insert(db)
+        .await?;
 
-        let sql2 = r#"
-        INSERT INTO vets (first_name, last_name) SELECT 'Helen', 'Leary' WHERE NOT EXISTS (SELECT * FROM vets WHERE id=2);
-        "#;
-        let stmt2 = Statement::from_string(manager.get_database_backend(), sql2.to_owned());
-        manager.get_connection().execute(stmt2).await?;
+        vet::ActiveModel {
+            first_name: Set("Helen".to_owned()),
+            last_name: Set("Leary".to_owned()),
+            ..Default::default()
+        }
+        .insert(db)
+        .await?;
 
-        let sql3 = r#"
-        INSERT INTO specialties (name) SELECT 'radiology' WHERE NOT EXISTS (SELECT * FROM specialties WHERE name='radiology');
-        "#;
-        let stmt3 = Statement::from_string(manager.get_database_backend(), sql3.to_owned());
-        manager.get_connection().execute(stmt3).await?;
+        specialty::ActiveModel {
+            name: Set("radiology".to_owned()),
+            ..Default::default()
+        }
+        .insert(db)
+        .await?;
 
-        let sql4 = r#"
-        INSERT INTO vet_specialties VALUES (2, 1) ON CONFLICT (vet_id, specialty_id) DO NOTHING;
-        "#;
-        let stmt4 = Statement::from_string(manager.get_database_backend(), sql4.to_owned());
-        manager.get_connection().execute(stmt4).await?;
+        vet_specialty::ActiveModel {
+            vet_id: Set(2),
+            specialty_id: Set(1),
+        }
+        .insert(db)
+        .await?;
 
         Ok(())
     }
