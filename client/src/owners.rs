@@ -1,5 +1,5 @@
 use serde::Deserialize;
-use yew::prelude::*;
+use sycamore::prelude::*;
 
 #[derive(Clone, PartialEq, Deserialize)]
 pub struct Owner {
@@ -11,35 +11,47 @@ pub struct Owner {
     telephone: String,
 }
 
-#[derive(Properties, PartialEq)]
-pub struct OwnersListProps {
-    pub owners: Vec<Owner>,
-}
-
-#[function_component(OwnersList)]
-pub fn owners_list(OwnersListProps { owners }: &OwnersListProps) -> Html {
-    html! {
-        <table id="owners">
-        <thead>
-        <tr>
-          <th>{"Name"}</th>
-          <th>{"Address"}</th>
-          <th>{"City"}</th>
-          <th>{"Telephone"}</th>
-        </tr>
-        </thead>
-        <tbody>
-        {
-            owners.iter().map(|owner| html! {
-            <tr>
-                <td>{format!("{} {}", owner.first_name, owner.last_name)}</td>
-                <td>{owner.address.to_owned()}</td>
-                <td>{owner.city.to_owned()}</td>
-                <td>{owner.telephone.to_owned()}</td>
-            </tr>
-            }).collect::<Html>()
+#[component(OwnersList<G>)]
+pub fn owners_list(owners: ReadSignal<Vec<Owner>>) -> View<G> {
+    view! {
+        table(id="owners") {
+            thead {
+                tr {
+                    th {
+                        "Name"
+                    }
+                    th {
+                        "Address"
+                    }
+                    th {
+                        "City"
+                    }
+                    th {
+                        "Telephone"
+                    }
+                }
+            }
+            tbody {
+                Indexed(IndexedProps {
+                    iterable: owners,
+                    template: |owner| view! {
+                        tr {
+                            td {
+                                (format!("{} {}", owner.first_name, owner.last_name))
+                            }
+                            td {
+                                (owner.address)
+                            }
+                            td {
+                                (owner.city)
+                            }
+                            td {
+                                (owner.telephone)
+                            }
+                         }
+                    },
+                })
+            }
         }
-        </tbody>
-      </table>
     }
 }

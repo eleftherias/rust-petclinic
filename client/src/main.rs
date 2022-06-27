@@ -3,79 +3,82 @@ pub mod owners;
 use owners::Owner;
 use owners::OwnersList;
 use reqwasm::http::Request;
-use yew::prelude::*;
-use yew_router::prelude::*;
+use sycamore::prelude::*;
+use sycamore_router::{HistoryIntegration, Route, Router, RouterProps};
 
-#[derive(Clone, Routable, PartialEq)]
-enum Route {
-    #[at("/")]
+#[derive(Route)]
+enum AppRoutes {
+    #[to("/")]
     Home,
-    #[at("/owners")]
+    #[to("/owners")]
     Owners,
     #[not_found]
-    #[at("/404")]
     NotFound,
 }
 
-#[function_component(Owners)]
-fn all_owners() -> Html {
-    let owners = use_state(|| vec![]);
+#[component(Owners<G>)]
+fn all_owners() -> View<G> {
+    let owners: Signal<Vec<Owner>> = Signal::new(vec![]);
     {
         let owners = owners.clone();
-        use_effect_with_deps(
-            move |_| {
-                let owners = owners.clone();
-                wasm_bindgen_futures::spawn_local(async move {
-                    let fetched_owners: Vec<Owner> = Request::get("http://localhost:3000/owners")
-                        .send()
-                        .await
-                        .unwrap()
-                        .json()
-                        .await
-                        .unwrap();
-                    owners.set(fetched_owners);
-                });
-                || ()
-            },
-            (),
-        );
-    }
-    html! {
-        <OwnersList owners={(*owners).clone()} />
-    }
-}
+        create_effect(move || {
+            let owners = owners.clone();
+            wasm_bindgen_futures::spawn_local(async move {
+                let fetched_owners: Vec<Owner> = Request::get("http://localhost:3000/owners")
+                    .send()
+                    .await
+                    .unwrap()
+                    .json()
+                    .await
+                    .unwrap();
 
-fn switch(routes: &Route) -> Html {
-    match routes {
-        Route::Home => html! { <h1>{ "Home" }</h1> },
-        Route::Owners => html! {
-            <Owners />
-        },
-        Route::NotFound => html! { <h1>{ "This page does not exist" }</h1> },
+                owners.set(fetched_owners);
+            });
+        });
     }
-}
 
-#[function_component(App)]
-fn app() -> Html {
-    html! {
-        <BrowserRouter>
-            <ul class="navbar">
-                <li class="navbar-item">
-                    <Link<Route> to={Route::Home}>
-                        { "HOME" }
-                    </Link<Route>>
-                </li>
-                <li class="navbar-item">
-                    <Link<Route> classes={classes!("navbar-item")} to={Route::Owners}>
-                        { "OWNERS" }
-                    </Link<Route>>
-                </li>
-            </ul>
-            <Switch<Route> render={Switch::render(switch)} />
-        </BrowserRouter>
+    view! {
+        OwnersList(owners.handle())
     }
 }
 
 fn main() {
-    yew::start_app::<App>();
+    sycamore::render(|| {
+        view! {
+            Router(RouterProps::new(HistoryIntegration::new(), |route: ReadSignal<AppRoutes>| {
+                let t = create_memo(move || match route.get().as_ref() {
+                    AppRoutes::Home => view! {
+                        h1 {
+                            "Home"
+                        }
+                    },
+                    AppRoutes::Owners => view! {
+                        Owners()
+                    },
+                    AppRoutes::NotFound => view! {
+                        h1 {
+                            "This page does not exist"
+                        }
+                    },
+                });
+                view! {
+                    div(class="app") {
+                        ul(class="navbar") {
+                            li(class="navbar-item") {
+                                a(href="/") {
+                                    "HOME"
+                                }
+                            }
+                            li(class="navbar-item") {
+                                a(href="/owners") {
+                                    "OWNERS"
+                                }
+                            }
+                        }
+                        (t.get().as_ref().clone())
+                    }
+                }
+            }))
+        }
+    });
 }
