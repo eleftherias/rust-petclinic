@@ -2,11 +2,6 @@
 
 A sample Rust application modeled after [Spring PetClinic](https://github.com/spring-projects/spring-petclinic).
 
-## Start PostgreSQL
-```
-docker compose up
-```
-
 ## Run the server application
 ```
 cd server
