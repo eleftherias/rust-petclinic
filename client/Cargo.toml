@@ -11,3 +11,9 @@ yew-router = "0.16"
 reqwasm = "0.5"
 serde = { version = "1.0", features = ["derive"] }
 wasm-bindgen-futures = "0.4"
+
+[profile.release]
+lto = true
+codegen-units = 1
+panic = "abort"
+opt-level = "z"
