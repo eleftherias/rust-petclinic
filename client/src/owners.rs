@@ -9,7 +9,7 @@ pub struct Owner {
     address: String,
     city: String,
     telephone: String,
-    pets: Vec<Pet>
+    pets: Vec<Pet>,
 }
 
 #[derive(Clone, PartialEq, Deserialize)]
@@ -17,9 +17,14 @@ pub struct Pet {
     pub name: String,
 }
 
-#[component(OwnersList<G>)]
-pub fn owners_list(owners: ReadSignal<Vec<Owner>>) -> View<G> {
-    view! {
+#[derive(Prop)]
+pub struct MyProps<'a> {
+    pub owners: &'a ReadSignal<Vec<Owner>>,
+}
+
+#[component]
+pub fn OwnersList<'a, G: Html>(cx: Scope<'a>, props: MyProps<'a>) -> View<G> {
+    view! {cx,
         table(id="owners") {
             thead {
                 tr {
@@ -41,9 +46,9 @@ pub fn owners_list(owners: ReadSignal<Vec<Owner>>) -> View<G> {
                 }
             }
             tbody {
-                Indexed(IndexedProps {
-                    iterable: owners,
-                    template: |owner| view! {
+                Indexed {
+                    iterable: props.owners,
+                    view: |cx, owner| view! { cx,
                         tr {
                             td {
                                 (format!("{} {}", owner.first_name, owner.last_name))
@@ -60,9 +65,9 @@ pub fn owners_list(owners: ReadSignal<Vec<Owner>>) -> View<G> {
                             td {
                                 (owner.pets.iter().map(|p| p.name.to_owned()).collect::<Vec<String>>().join(", "))
                             }
-                         }
+                        }
                     },
-                })
+                }
             }
         }
     }
