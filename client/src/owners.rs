@@ -9,6 +9,12 @@ pub struct Owner {
     address: String,
     city: String,
     telephone: String,
+    pets: Vec<Pet>
+}
+
+#[derive(Clone, PartialEq, Deserialize)]
+pub struct Pet {
+    pub name: String,
 }
 
 #[component(OwnersList<G>)]
@@ -29,6 +35,9 @@ pub fn owners_list(owners: ReadSignal<Vec<Owner>>) -> View<G> {
                     th {
                         "Telephone"
                     }
+                    th {
+                        "Pets"
+                    }
                 }
             }
             tbody {
@@ -47,6 +56,9 @@ pub fn owners_list(owners: ReadSignal<Vec<Owner>>) -> View<G> {
                             }
                             td {
                                 (owner.telephone)
+                            }
+                            td {
+                                (owner.pets.iter().map(|p| p.name.to_owned()).collect::<Vec<String>>().join(", "))
                             }
                          }
                     },
