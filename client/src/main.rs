@@ -3,6 +3,7 @@ pub mod pet;
 
 use owners::Owner;
 use owners::OwnersList;
+use pet::PetForm;
 use reqwasm::http::Request;
 use sycamore::prelude::*;
 use sycamore_router::{HistoryIntegration, Route, Router};
@@ -13,6 +14,8 @@ enum AppRoutes {
     Home,
     #[to("/owners")]
     Owners,
+    #[to("/owners/<owner_id>/pets/new")]
+    Pet { owner_id: i32 },
     #[not_found]
     NotFound,
 }
@@ -64,6 +67,11 @@ fn main() {
                                     },
                                     AppRoutes::Owners => view! {cx,
                                         Owners()
+                                    },
+                                    AppRoutes::Pet { owner_id } => view! {cx,
+                                        PetForm {
+                                            owner_id: *owner_id
+                                        }
                                     },
                                     AppRoutes::NotFound => view! {cx,
                                         h1 {

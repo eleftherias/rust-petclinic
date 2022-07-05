@@ -24,6 +24,13 @@ impl MigrationTrait for Migration {
         .insert(db)
         .await?;
 
+        pet_type::ActiveModel {
+            name: Set("dog".to_owned()),
+            ..Default::default()
+        }
+        .insert(db)
+        .await?;
+
         pet::ActiveModel {
             name: Set("Leo".to_owned()),
             birth_date: Set(Date::parse_from_str("2000-09-07", "%Y-%m-%d").unwrap()),

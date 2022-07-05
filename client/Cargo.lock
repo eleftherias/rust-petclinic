@@ -263,6 +263,7 @@ version = "0.1.0"
 dependencies = [
  "reqwasm",
  "serde",
+ "serde_json",
  "sycamore",
  "sycamore-router",
  "wasm-bindgen-futures",

@@ -38,4 +38,12 @@ th {
     border: 1px solid black;
     padding: 5px;
 }
+
+input,
+label {
+    display: block;
+}
+
+.add-pet {
+    margin: 10px 0;
 }

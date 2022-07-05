@@ -46,6 +46,7 @@ pub fn OwnersList<'a, G: Html>(cx: Scope<'a>, props: MyProps<'a>) -> View<G> {
                     th {
                         "Pets"
                     }
+                    th {}
                 }
             }
             tbody {
@@ -67,6 +68,11 @@ pub fn OwnersList<'a, G: Html>(cx: Scope<'a>, props: MyProps<'a>) -> View<G> {
                             }
                             td {
                                 (owner.pets.iter().map(|p| p.name.to_owned()).collect::<Vec<String>>().join(", "))
+                            }
+                            td {
+                                a(href=(format!("/owners/{}/pets/new", owner.id))) {
+                                    "Add Pet"
+                                }
                             }
                         }
                     },

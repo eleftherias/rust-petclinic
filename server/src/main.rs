@@ -6,7 +6,7 @@ use axum::{
     Extension, Json, Router,
 };
 use entity::{owner, pet, pet_type, specialty, vet};
-use hyper::{Method, StatusCode};
+use hyper::StatusCode;
 use migration::{Migrator, MigratorTrait};
 use owner::Entity as Owner;
 use pet::Entity as Pet;
@@ -15,7 +15,7 @@ use sea_orm::{entity::prelude::*, DatabaseConnection, EntityTrait, Set};
 use serde::{Deserialize, Serialize};
 use specialty::Entity as Specialty;
 use tower::ServiceBuilder;
-use tower_http::cors::CorsLayer;
+use tower_http::cors::{Any, CorsLayer};
 use vet::Entity as Vet;
 
 #[tokio::main]
@@ -33,8 +33,9 @@ async fn main() {
         .route("/owners/:owner_id/pets/new", post(pet_create))
         .layer(
             CorsLayer::new()
+                .allow_headers(Any)
                 .allow_origin("http://localhost:8080".parse::<HeaderValue>().unwrap())
-                .allow_methods([Method::GET]),
+                .allow_methods(Any),
         )
         .layer(ServiceBuilder::new().layer(Extension(connection)));
 
