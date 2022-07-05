@@ -25,6 +25,9 @@ pub struct MyProps<'a> {
 #[component]
 pub fn OwnersList<'a, G: Html>(cx: Scope<'a>, props: MyProps<'a>) -> View<G> {
     view! {cx,
+        h1 {
+            "Owners"
+        }
         table(id="owners") {
             thead {
                 tr {

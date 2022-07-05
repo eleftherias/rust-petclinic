@@ -55,22 +55,23 @@ fn main() {
                                     }
                                 }
                             }
-                            (match route.get().as_ref() {
-                                AppRoutes::Home => view! {cx,
-                                    h1 {
-                                        "Home"
-                                    }
-                                },
-                                AppRoutes::Owners => view! {cx,
-                                    Owners()
-                                },
-                                AppRoutes::NotFound => view! {cx,
-                                    h1 {
-                                        "This page does not exist"
-                                    }
-                                },
-                            })
-
+                            div(class="main") {
+                                (match route.get().as_ref() {
+                                    AppRoutes::Home => view! {cx,
+                                        h1 {
+                                            "Home"
+                                        }
+                                    },
+                                    AppRoutes::Owners => view! {cx,
+                                        Owners()
+                                    },
+                                    AppRoutes::NotFound => view! {cx,
+                                        h1 {
+                                            "This page does not exist"
+                                        }
+                                    },
+                                })
+                            }
                         }
                     }
                 }
