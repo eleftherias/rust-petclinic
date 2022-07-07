@@ -24,6 +24,9 @@ cargo test
 ```
 
 ## Run the client application
+```
+cd client
+```
 
 Serve the application by running:
 ```
