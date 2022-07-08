@@ -1,22 +1,30 @@
+use std::time::{SystemTime, UNIX_EPOCH};
+
 use axum::{
-    extract::Path,
+    async_trait,
+    extract::{FromRequest, Path, RequestParts, TypedHeader},
+    headers::{authorization::Bearer, Authorization},
     http::HeaderValue,
-    response::IntoResponse,
+    response::{IntoResponse, Response},
     routing::{get, post},
     Extension, Json, Router,
 };
 use entity::{owner, pet, pet_type, specialty, vet};
 use hyper::StatusCode;
+use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header, Validation};
 use migration::{Migrator, MigratorTrait};
 use owner::Entity as Owner;
 use pet::Entity as Pet;
 use pet_type::Entity as PetType;
 use sea_orm::{entity::prelude::*, DatabaseConnection, EntityTrait, Set};
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 use specialty::Entity as Specialty;
 use tower::ServiceBuilder;
 use tower_http::cors::{Any, CorsLayer};
 use vet::Entity as Vet;
+
+static SECRET: &[u8] = b"2A82803BD110E4E06C94E581C559DFA";
 
 #[tokio::main]
 async fn main() {
@@ -31,6 +39,7 @@ async fn main() {
         .route("/vets", get(vets_get))
         .route("/owners", get(owners_get))
         .route("/owners/:owner_id/pets/new", post(pet_create))
+        .route("/token", post(authorize))
         .layer(
             CorsLayer::new()
                 .allow_headers(Any)
@@ -46,7 +55,10 @@ async fn main() {
         .unwrap();
 }
 
-async fn vets_get(Extension(ref conn): Extension<DatabaseConnection>) -> impl IntoResponse {
+async fn vets_get(
+    Extension(ref conn): Extension<DatabaseConnection>,
+    _claims: Claims, // Require authentication for this endpoint
+) -> impl IntoResponse {
     let vets: Vec<VetDto> = Vet::find()
         .find_with_related(Specialty)
         .all(conn)
@@ -135,6 +147,93 @@ async fn pet_create(
     .expect("Coud not create pet");
 
     StatusCode::CREATED
+}
+
+async fn authorize(Json(payload): Json<AuthPayload>) -> Result<String, AuthError> {
+    if payload.user.is_empty() || payload.password.is_empty() {
+        return Err(AuthError::MissingCredentials);
+    }
+
+    let now = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_secs();
+
+    let expiry = 36000;
+
+    // TODO: validate credentials
+    let claims = Claims {
+        exp: (now + expiry) as usize,
+        iat: now as usize,
+        iss: "self".to_owned(),
+        scope: "read".to_owned(),
+        sub: "user".to_owned(),
+    };
+    let token = encode(&Header::default(), &claims,  &EncodingKey::from_secret(SECRET))
+        .map_err(|_| AuthError::TokenCreation)?;
+
+    Ok(token)
+}
+
+#[async_trait]
+impl<B> FromRequest<B> for Claims
+where
+    B: Send,
+{
+    type Rejection = AuthError;
+
+    async fn from_request(req: &mut RequestParts<B>) -> Result<Self, Self::Rejection> {
+        let TypedHeader(Authorization(bearer)) =
+            TypedHeader::<Authorization<Bearer>>::from_request(req)
+                .await
+                .map_err(|_| AuthError::InvalidToken)?;
+        let token_data = decode::<Claims>(bearer.token(),  &DecodingKey::from_secret(SECRET), &Validation::default())
+            .map_err(|_| AuthError::InvalidToken)?;
+
+        Ok(token_data.claims)
+    }
+}
+
+impl IntoResponse for AuthError {
+    fn into_response(self) -> Response {
+        let (status, error_message) = match self {
+            AuthError::MissingCredentials => (StatusCode::BAD_REQUEST, "Missing credentials"),
+            AuthError::TokenCreation => (StatusCode::INTERNAL_SERVER_ERROR, "Token creation error"),
+            AuthError::InvalidToken => (StatusCode::BAD_REQUEST, "Invalid token"),
+        };
+        let body = Json(json!({
+            "error": error_message,
+        }));
+        (status, body).into_response()
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct Claims {
+    exp: usize,
+    iat: usize,
+    iss: String,
+    scope: String,
+    sub: String,
+}
+
+#[derive(Debug, Serialize)]
+struct AuthBody {
+    access_token: String,
+    token_type: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct AuthPayload {
+    user: String,
+    password: String,
+}
+
+#[derive(Debug)]
+enum AuthError {
+    MissingCredentials,
+    TokenCreation,
+    InvalidToken,
 }
 
 #[derive(Serialize)]

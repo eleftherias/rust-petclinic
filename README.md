@@ -13,14 +13,30 @@ cargo run
 ```
 The application will start on port 3000.
 
-You can then access the `/vets` endpoint:
+You can then access the `/owners` endpoint:
 ```
-curl -v localhost:3000/vets
+curl -v localhost:3000/owners
 ```
 
 Test the application by running:
 ```
 cargo test
+```
+
+## JWT authentication
+The `/vets` endpoint requires JWT authentication.
+
+Retrieve a token from the `/token` endpoint:
+
+```
+export TOKEN=`curl -XPOST localhost:3000/token -H "Content-Type: application/json" -d '{"user":"foo","password":"bar"}'`
+```
+note: any user/password are accepted
+
+Use the bearer token to access the `/vets/` endpoint:
+
+```
+curl -H "Authorization: Bearer $TOKEN" localhost:3000/vets
 ```
 
 ## Run the client application
