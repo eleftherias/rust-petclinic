@@ -16,7 +16,7 @@ use migration::{Migrator, MigratorTrait};
 use owner::Entity as Owner;
 use pet::Entity as Pet;
 use pet_type::Entity as PetType;
-use sea_orm::{entity::prelude::*, DatabaseConnection, EntityTrait, Set};
+use sea_orm::{entity::prelude::*, Database, DatabaseConnection, EntityTrait, Set};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use specialty::Entity as Specialty;
@@ -28,14 +28,19 @@ static SECRET: &[u8] = b"2A82803BD110E4E06C94E581C559DFA";
 
 #[tokio::main]
 async fn main() {
-    let connection =
-        sea_orm::Database::connect("sqlite::memory:")
-            .await
-            .unwrap();
+    let connection = Database::connect("sqlite::memory:").await.unwrap();
     Migrator::fresh(&connection).await.unwrap();
     Migrator::up(&connection, None).await.unwrap();
 
-    let app = Router::new()
+    // run it with hyper on localhost:3000
+    axum::Server::bind(&"0.0.0.0:3000".parse().unwrap())
+        .serve(app(connection).into_make_service())
+        .await
+        .unwrap();
+}
+
+fn app(connection: DatabaseConnection) -> Router {
+    Router::new()
         .route("/vets", get(vets_get))
         .route("/owners", get(owners_get))
         .route("/owners/:owner_id/pets/new", post(pet_create))
@@ -46,13 +51,7 @@ async fn main() {
                 .allow_origin("http://localhost:8080".parse::<HeaderValue>().unwrap())
                 .allow_methods(Any),
         )
-        .layer(ServiceBuilder::new().layer(Extension(connection)));
-
-    // run it with hyper on localhost:3000
-    axum::Server::bind(&"0.0.0.0:3000".parse().unwrap())
-        .serve(app.into_make_service())
-        .await
-        .unwrap();
+        .layer(ServiceBuilder::new().layer(Extension(connection)))
 }
 
 async fn vets_get(
@@ -169,8 +168,12 @@ async fn authorize(Json(payload): Json<AuthPayload>) -> Result<String, AuthError
         scope: "read".to_owned(),
         sub: "user".to_owned(),
     };
-    let token = encode(&Header::default(), &claims,  &EncodingKey::from_secret(SECRET))
-        .map_err(|_| AuthError::TokenCreation)?;
+    let token = encode(
+        &Header::default(),
+        &claims,
+        &EncodingKey::from_secret(SECRET),
+    )
+    .map_err(|_| AuthError::TokenCreation)?;
 
     Ok(token)
 }
@@ -187,8 +190,12 @@ where
             TypedHeader::<Authorization<Bearer>>::from_request(req)
                 .await
                 .map_err(|_| AuthError::InvalidToken)?;
-        let token_data = decode::<Claims>(bearer.token(),  &DecodingKey::from_secret(SECRET), &Validation::default())
-            .map_err(|_| AuthError::InvalidToken)?;
+        let token_data = decode::<Claims>(
+            bearer.token(),
+            &DecodingKey::from_secret(SECRET),
+            &Validation::default(),
+        )
+        .map_err(|_| AuthError::InvalidToken)?;
 
         Ok(token_data.claims)
     }
@@ -269,7 +276,7 @@ struct PetDto {
     kind: TypeDto, // type is a keyword in Rust
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Serialize)]
 struct CreatePet {
     name: String,
     birth_date: Date,
@@ -283,33 +290,45 @@ struct TypeDto {
 }
 
 // Temporarily disable
-// #[cfg(test)]
-// mod tests {
-//     use super::*;
-//     use axum::{
-//         body::Body,
-//         http::{Request, StatusCode},
-//     };
-//     use serde_json::Value;
-//     use tower::ServiceExt; // for `app.oneshot()`
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use axum::{
+        body::Body,
+        http::{Request, StatusCode},
+    };
+    use sea_orm::Database;
+    use serde_json::Value;
+    use tower::ServiceExt; // for `app.oneshot()`
 
-//     #[tokio::test]
-//     async fn vets_get_returns() {
-//         let app = app();
+    #[tokio::test]
+    async fn get_owners_returns_owner_list() {
+        let connection = Database::connect("sqlite::memory:").await.unwrap();
+        Migrator::fresh(&connection).await.unwrap();
+        Migrator::up(&connection, None).await.unwrap();
 
-//         // `Router` implements `tower::Service<Request<Body>>` so we can
-//         // call it like any tower service, no need to run an HTTP server.
-//         let response = app
-//             .oneshot(Request::builder().uri("/vets").body(Body::empty()).unwrap())
-//             .await
-//             .unwrap();
+        let app = app(connection);
 
-//         assert_eq!(response.status(), StatusCode::OK);
+        // `Router` implements `tower::Service<Request<Body>>` so we can
+        // call it like any tower service, no need to run an HTTP server.
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/owners")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
 
-//         let body = hyper::body::to_bytes(response.into_body()).await.unwrap();
-//         let body: Value = serde_json::from_slice(&body).unwrap();
-//         let first_vet = body.get(0);
-//         assert!(first_vet.is_some());
-//         assert!(first_vet.unwrap().get("id").is_some());
-//     }
-// }
+        assert_eq!(response.status(), StatusCode::OK);
+
+        let body = hyper::body::to_bytes(response.into_body()).await.unwrap();
+        let owner_list: Value = serde_json::from_slice(&body).unwrap();
+        assert_eq!(owner_list.as_array().unwrap().len(), 10);
+
+        let first_owner = owner_list.get(0);
+        assert!(first_owner.is_some());
+        assert!(first_owner.unwrap().get("id").is_some());
+    }
+}
