@@ -230,7 +230,7 @@ struct AuthBody {
     token_type: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 struct AuthPayload {
     user: String,
     password: String,
@@ -289,7 +289,6 @@ struct TypeDto {
     name: String,
 }
 
-// Temporarily disable
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -330,5 +329,185 @@ mod tests {
         let first_owner = owner_list.get(0);
         assert!(first_owner.is_some());
         assert!(first_owner.unwrap().get("id").is_some());
+    }
+
+    #[tokio::test]
+    async fn post_new_pet_creates_pet() {
+        let connection = Database::connect("sqlite::memory:").await.unwrap();
+        // there is likely a better alternative to cloning
+        let connection1 = connection.clone(); 
+        Migrator::fresh(&connection).await.unwrap();
+        Migrator::up(&connection, None).await.unwrap();
+
+        let app = app(connection);
+
+        let new_pet = CreatePet {
+            name: "Cat".to_owned(),
+            birth_date: Date::from_ymd(2015, 3, 15),
+            kind_id: 1,
+        };
+
+        let new_pet_string = serde_json::to_string(&new_pet).unwrap();
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .header("Content-Type", "application/json")
+                    .uri("/owners/1/pets/new")
+                    .body(Body::from(new_pet_string))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::CREATED);
+
+        let new_pet_db: Vec<pet::Model> = Pet::find()
+            .filter(pet::Column::Name.contains("Cat"))
+            .all(&connection1)
+            .await
+            .unwrap();
+
+        assert_eq!(new_pet_db.len(), 1);
+        assert_eq!(new_pet_db.first().unwrap().owner_id, Some(1));
+    }
+
+    #[tokio::test]
+    async fn post_token_with_credentials_returns_token() {
+        let connection = Database::connect("sqlite::memory:").await.unwrap();
+        Migrator::fresh(&connection).await.unwrap();
+        Migrator::up(&connection, None).await.unwrap();
+
+        let app = app(connection);
+
+        let user = AuthPayload {
+            user: "user".to_owned(),
+            password: "password".to_owned(),
+        };
+
+        let user_string = serde_json::to_string(&user).unwrap();
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .header("Content-Type", "application/json")
+                    .uri("/token")
+                    .body(Body::from(user_string))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::OK);
+
+        let body = hyper::body::to_bytes(response.into_body()).await.unwrap();
+        assert!(!body.is_empty());
+    }
+
+    #[tokio::test]
+    async fn post_token_without_credentials_returns_400() {
+        let connection = Database::connect("sqlite::memory:").await.unwrap();
+        Migrator::fresh(&connection).await.unwrap();
+        Migrator::up(&connection, None).await.unwrap();
+
+        let app = app(connection);
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .header("Content-Type", "application/json")
+                    .uri("/token")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    }
+
+    #[tokio::test]
+    async fn get_vets_with_token_returns_vet_list() {
+        let connection = Database::connect("sqlite::memory:").await.unwrap();
+        Migrator::fresh(&connection).await.unwrap();
+        Migrator::up(&connection, None).await.unwrap();
+
+        let app = app(connection);
+
+        let claims = Claims {
+            exp: 2000000000, // May 2033
+            iat: 1657793083,
+            iss: "self".to_owned(),
+            scope: "read".to_owned(),
+            sub: "user".to_owned(),
+        };
+
+        let token = encode(
+            &Header::default(),
+            &claims,
+            &EncodingKey::from_secret(SECRET),
+        )
+        .unwrap();
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                .header("Authorization", format!("Bearer {token}"))
+                    .uri("/vets")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::OK);
+
+        let body = hyper::body::to_bytes(response.into_body()).await.unwrap();
+        let vet_list: Value = serde_json::from_slice(&body).unwrap();
+        assert_eq!(vet_list.as_array().unwrap().len(), 2);
+
+        let first_vet = vet_list.get(0);
+        assert!(first_vet.is_some());
+        assert!(first_vet.unwrap().get("id").is_some());
+    }
+
+    #[tokio::test]
+    async fn get_vets_with_expired_token_returns_200() {
+        let connection = Database::connect("sqlite::memory:").await.unwrap();
+        Migrator::fresh(&connection).await.unwrap();
+        Migrator::up(&connection, None).await.unwrap();
+
+        let app = app(connection);
+
+        let claims = Claims {
+            exp: 1654041600, // June 2022
+            iat: 1657793083,
+            iss: "self".to_owned(),
+            scope: "read".to_owned(),
+            sub: "user".to_owned(),
+        };
+
+        let token = encode(
+            &Header::default(),
+            &claims,
+            &EncodingKey::from_secret(SECRET),
+        )
+        .unwrap();
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                .header("Authorization", format!("Bearer {token}"))
+                    .uri("/vets")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
     }
 }
