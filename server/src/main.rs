@@ -32,7 +32,6 @@ async fn main() {
     Migrator::fresh(&connection).await.unwrap();
     Migrator::up(&connection, None).await.unwrap();
 
-    // run it with hyper on localhost:3000
     axum::Server::bind(&"0.0.0.0:3000".parse().unwrap())
         .serve(app(connection).into_make_service())
         .await
@@ -149,6 +148,7 @@ async fn pet_create(
 }
 
 async fn authorize(Json(payload): Json<AuthPayload>) -> Result<String, AuthError> {
+    // Allow any username/password combination
     if payload.user.is_empty() || payload.password.is_empty() {
         return Err(AuthError::MissingCredentials);
     }
@@ -160,7 +160,6 @@ async fn authorize(Json(payload): Json<AuthPayload>) -> Result<String, AuthError
 
     let expiry = 36000;
 
-    // TODO: validate credentials
     let claims = Claims {
         exp: (now + expiry) as usize,
         iat: now as usize,
@@ -266,7 +265,7 @@ mod tests {
     };
     use sea_orm::Database;
     use serde_json::Value;
-    use tower::ServiceExt; // for `app.oneshot()`
+    use tower::ServiceExt;
 
     #[tokio::test]
     async fn get_owners_returns_owner_list() {
@@ -276,8 +275,6 @@ mod tests {
 
         let app = app(connection);
 
-        // `Router` implements `tower::Service<Request<Body>>` so we can
-        // call it like any tower service, no need to run an HTTP server.
         let response = app
             .oneshot(
                 Request::builder()
@@ -423,7 +420,7 @@ mod tests {
         let response = app
             .oneshot(
                 Request::builder()
-                .header("Authorization", format!("Bearer {token}"))
+                    .header("Authorization", format!("Bearer {token}"))
                     .uri("/vets")
                     .body(Body::empty())
                     .unwrap(),
@@ -468,7 +465,7 @@ mod tests {
         let response = app
             .oneshot(
                 Request::builder()
-                .header("Authorization", format!("Bearer {token}"))
+                    .header("Authorization", format!("Bearer {token}"))
                     .uri("/vets")
                     .body(Body::empty())
                     .unwrap(),
