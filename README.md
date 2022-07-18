@@ -2,6 +2,12 @@
 
 A sample Rust application modeled after [Spring PetClinic](https://github.com/spring-projects/spring-petclinic).
 
+## Overview
+
+This application uses [axum](https://github.com/tokio-rs/axum) and [SeaORM](https://github.com/SeaQL/sea-orm) on the server side and [Sycamore](https://github.com/sycamore-rs/sycamore) on the client side.
+
+There is also a `dto` library for sharing the DTOs across the server and client side. This is possible since both are written in Rust.
+
 ## Run the server application
 ```
 cd server
@@ -51,3 +57,7 @@ trunk serve
 The application will start on port 8080.
 
 You can view the running application by navigating to localhost:8080 in your browser.
+
+## Feedback
+
+I am new to Rust. Feedback on best practices is appreciated.
