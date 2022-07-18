@@ -1,14 +1,7 @@
+use chrono::NaiveDate;
 use reqwasm::http::Request;
-use serde::{Deserialize, Serialize};
 use sycamore::prelude::*;
 use sycamore_router::navigate;
-
-#[derive(Clone, PartialEq, Deserialize, Serialize)]
-pub struct NewPet {
-    pub name: String,
-    pub birth_date: String,
-    pub kind_id: i32,
-}
 
 #[derive(Prop)]
 pub struct MyProps {
@@ -30,9 +23,10 @@ pub async fn PetForm<G: Html>(cx: Scope<'_>, props: MyProps) -> View<G> {
             let pet_created =
                 Request::post(&format!("http://localhost:3000/owners/{owner_id}/pets/new"))
                     .body(
-                        serde_json::to_string(&NewPet {
+                        serde_json::to_string(&dto::NewPet {
                             name: pet_name,
-                            birth_date: pet_birth_date,
+                            birth_date: NaiveDate::parse_from_str(&pet_birth_date, "%Y-%m-%d")
+                                .unwrap(),
                             kind_id: pet_type,
                         })
                         .unwrap(),

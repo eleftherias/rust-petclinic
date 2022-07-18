@@ -1,25 +1,8 @@
-use serde::Deserialize;
 use sycamore::prelude::*;
-
-#[derive(Clone, PartialEq, Deserialize)]
-pub struct Owner {
-    id: i32,
-    first_name: String,
-    last_name: String,
-    address: String,
-    city: String,
-    telephone: String,
-    pets: Vec<Pet>,
-}
-
-#[derive(Clone, PartialEq, Deserialize)]
-pub struct Pet {
-    pub name: String,
-}
 
 #[derive(Prop)]
 pub struct MyProps<'a> {
-    pub owners: &'a ReadSignal<Vec<Owner>>,
+    pub owners: &'a ReadSignal<Vec<dto::Owner>>,
 }
 
 #[component]

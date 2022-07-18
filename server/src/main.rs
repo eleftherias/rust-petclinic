@@ -88,14 +88,14 @@ async fn owners_get(Extension(ref conn): Extension<DatabaseConnection>) -> impl 
         .await
         .expect("Could not fetch owners");
 
-    let mut owner_dtos: Vec<OwnerDto> = Vec::new();
+    let mut owner_dtos: Vec<dto::Owner> = Vec::new();
     for owner in owners {
         let pets = owner
             .find_related(Pet)
             .all(conn)
             .await
             .expect("Could not fetch pets");
-        let mut pet_dtos: Vec<PetDto> = Vec::new();
+        let mut pet_dtos: Vec<dto::Pet> = Vec::new();
         for pet in pets {
             let kind = pet
                 .find_related(PetType)
@@ -103,18 +103,18 @@ async fn owners_get(Extension(ref conn): Extension<DatabaseConnection>) -> impl 
                 .await
                 .expect("Could not fetch pet type")
                 .unwrap();
-            let pet_dto = PetDto {
+            let pet_dto = dto::Pet {
                 id: pet.id,
                 name: pet.name,
                 birth_date: pet.birth_date,
-                kind: TypeDto {
+                kind: dto::Type {
                     id: kind.id,
                     name: kind.name,
                 },
             };
             pet_dtos.push(pet_dto);
         }
-        let owner_dto = OwnerDto {
+        let owner_dto = dto::Owner {
             id: owner.id,
             first_name: owner.first_name,
             last_name: owner.last_name,
@@ -132,7 +132,7 @@ async fn owners_get(Extension(ref conn): Extension<DatabaseConnection>) -> impl 
 async fn pet_create(
     Extension(ref conn): Extension<DatabaseConnection>,
     Path(owner_id): Path<i32>,
-    Json(payload): Json<CreatePet>,
+    Json(payload): Json<dto::NewPet>,
 ) -> impl IntoResponse {
     pet::ActiveModel {
         name: Set(payload.name.to_owned()),
@@ -257,38 +257,6 @@ struct SpecialtyDto {
     name: String,
 }
 
-#[derive(Serialize)]
-struct OwnerDto {
-    id: i32,
-    first_name: String,
-    last_name: String,
-    address: String,
-    city: String,
-    telephone: String,
-    pets: Vec<PetDto>,
-}
-
-#[derive(Serialize)]
-struct PetDto {
-    id: i32,
-    name: String,
-    birth_date: Date,
-    kind: TypeDto, // type is a keyword in Rust
-}
-
-#[derive(Deserialize, Serialize)]
-struct CreatePet {
-    name: String,
-    birth_date: Date,
-    kind_id: i32,
-}
-
-#[derive(Serialize)]
-struct TypeDto {
-    id: i32,
-    name: String,
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -335,13 +303,13 @@ mod tests {
     async fn post_new_pet_creates_pet() {
         let connection = Database::connect("sqlite::memory:").await.unwrap();
         // there is likely a better alternative to cloning
-        let connection1 = connection.clone(); 
+        let connection1 = connection.clone();
         Migrator::fresh(&connection).await.unwrap();
         Migrator::up(&connection, None).await.unwrap();
 
         let app = app(connection);
 
-        let new_pet = CreatePet {
+        let new_pet = dto::NewPet {
             name: "Cat".to_owned(),
             birth_date: Date::from_ymd(2015, 3, 15),
             kind_id: 1,

@@ -1,7 +1,6 @@
 pub mod owners;
 pub mod pet;
 
-use owners::Owner;
 use owners::OwnersList;
 use pet::PetForm;
 use reqwasm::http::Request;
@@ -22,7 +21,7 @@ enum AppRoutes {
 
 #[component]
 async fn Owners<G: Html>(cx: Scope<'_>) -> View<G> {
-    let owners: &Signal<Vec<Owner>> = create_signal(cx, Vec::new());
+    let owners: &Signal<Vec<dto::Owner>> = create_signal(cx, Vec::new());
     owners.set(
         Request::get("http://localhost:3000/owners")
             .send()

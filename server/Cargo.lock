@@ -509,6 +509,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "77c90badedccf4105eca100756a0b1289e191f6fcbdadd3cee1d2f614f97da8f"
 
 [[package]]
+name = "dto"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "serde",
+]
+
+[[package]]
 name = "either"
 version = "1.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1468,6 +1476,8 @@ name = "rust-petclinic"
 version = "0.1.0"
 dependencies = [
  "axum",
+ "chrono",
+ "dto",
  "entity",
  "hyper",
  "jsonwebtoken",
